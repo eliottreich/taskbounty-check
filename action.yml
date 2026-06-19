@@ -1,0 +1,22 @@
+name: "TaskBounty Check"
+description: "Scan your GitHub Actions + CI maintenance hygiene on every PR. Local-only: source never leaves the runner, nothing is uploaded."
+author: "TaskBounty"
+branding:
+  icon: "shield"
+  color: "blue"
+
+inputs:
+  path:
+    description: "Path to scan (a repo or a directory of repos). Defaults to the checked-out repository."
+    required: false
+    default: "."
+
+runs:
+  using: "composite"
+  steps:
+    # Runs the action's OWN bundled CLI source via $GITHUB_ACTION_PATH. It does not download or
+    # install another package at runtime. Writes only a sanitized counts summary to the job
+    # summary, uploads nothing, reads no secrets, and never fails the build.
+    - name: Run TaskBounty Check
+      shell: bash
+      run: node "$GITHUB_ACTION_PATH/src/index.js" "${{ inputs.path }}" --github-summary --no-network

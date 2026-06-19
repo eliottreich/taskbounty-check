@@ -1,0 +1,4 @@
+node_modules/
+*.tgz
+actions-check-report.*
+.DS_Store

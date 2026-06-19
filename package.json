@@ -1,0 +1,53 @@
+{
+  "name": "taskbounty-check",
+  "version": "0.1.0",
+  "description": "Pre-launch safety check for AI-built apps (Lovable, Bolt, Replit, Cursor, v0). Scans your GitHub Actions + CI hygiene locally. Source code and workflow contents never leave your machine.",
+  "type": "module",
+  "bin": {
+    "taskbounty-check": "src/index.js",
+    "security-check": "src/index.js"
+  },
+  "exports": {
+    ".": "./src/lib.js"
+  },
+  "files": [
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "vitest run test/cli.test.ts",
+    "pack-check": "npm pack --dry-run"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "vitest": "^2.0.0"
+  },
+  "license": "MIT",
+  "keywords": [
+    "ai-app-security",
+    "vibe-coding",
+    "lovable",
+    "bolt",
+    "replit",
+    "cursor",
+    "v0",
+    "github-actions",
+    "security",
+    "local-scanner"
+  ],
+  "homepage": "https://www.task-bounty.com/ai-app-security-check",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eliottreich/agent-bounty-board.git",
+    "directory": "packages/security-check-cli"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "private": false
+}

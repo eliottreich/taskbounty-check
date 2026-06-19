@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { mkdtempSync, mkdirSync, writeFileSync, symlinkSync, rmSync, readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { scanRepoRoots, scanInput, toSanitizedSummary, assertSanitizedSummarySafe, reviewCtaUrl, renderHtml, buildNormalizedResult } from "../src/lib.js";
@@ -124,6 +125,16 @@ describe("GitHub Action is read-only and self-contained", () => {
     expect(yml).toContain("--no-network");
     expect(yml).not.toMatch(/upload-artifact|actions\/upload/i); // never uploads reports/artifacts
     expect(yml).not.toMatch(/\bwrite\b/i); // requests no write permission
+  });
+});
+
+describe("CLI version", () => {
+  it("reports the published package name and version", () => {
+    const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
+    const output = execFileSync(process.execPath, [new URL("../src/index.js", import.meta.url).pathname, "--version"], {
+      encoding: "utf8",
+    }).trim();
+    expect(output).toBe(`taskbounty-check@${pkg.version}`);
   });
 });
 

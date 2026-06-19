@@ -6,9 +6,13 @@
 import { writeFileSync, unlinkSync, existsSync, readFileSync, appendFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { execFileSync } from "node:child_process";
-import { scanRepoRoots, scanInput, newScanId, toSanitizedSummary, assertSanitizedSummarySafe, renderHtml, buildNormalizedResult, SCANNER_VERSION, reviewCtaUrl, REVIEW_CTA_TEXT, renderGithubSummary } from "./lib.js";
+import { scanRepoRoots, scanInput, newScanId, toSanitizedSummary, assertSanitizedSummarySafe, renderHtml, buildNormalizedResult, reviewCtaUrl, REVIEW_CTA_TEXT, renderGithubSummary } from "./lib.js";
 import { auditWorkflows } from "./scanner.js";
 import { installNoNetworkGuard } from "./net.js";
+
+const PACKAGE_VERSION = JSON.parse(
+  readFileSync(new URL("../package.json", import.meta.url), "utf8"),
+).version;
 
 function parseArgs(argv) {
   const flags = { share: false, dryRun: false, explainData: false, deleteReport: false, ghOrg: null, manifest: null, orgLabel: null, includeRepoNames: false, out: "actions-check-report" };
@@ -26,7 +30,7 @@ function parseArgs(argv) {
     else if (a === "--manifest") flags.manifest = argv[++i];
     else if (a === "--org-label") flags.orgLabel = argv[++i];
     else if (a === "--out") flags.out = argv[++i];
-    else if (a === "--version" || a === "-v") { console.log(SCANNER_VERSION); process.exit(0); }
+    else if (a === "--version" || a === "-v") { console.log(`taskbounty-check@${PACKAGE_VERSION}`); process.exit(0); }
     else if (a === "--help" || a === "-h") { printHelp(); process.exit(0); }
     else if (!a.startsWith("-")) paths.push(a);
   }

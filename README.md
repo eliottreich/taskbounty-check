@@ -19,6 +19,29 @@ npx taskbounty-check@latest .
 npx taskbounty-check@<exact-version> .
 ```
 
+## GitHub Action
+
+Add the check to a pull-request workflow with read-only permissions:
+
+```yaml
+name: TaskBounty Check
+
+on: [pull_request]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - uses: eliottreich/taskbounty-check@v1
+```
+
+The Action writes a sanitized counts-only summary to the GitHub job summary. It uploads nothing,
+reads no secrets, and does not fail the build.
+
 ## What it does
 
 - Reads only your GitHub Actions workflow files and update-automation config, scans them

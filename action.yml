@@ -1,5 +1,5 @@
 name: "TaskBounty Check"
-description: "Scan your GitHub Actions + CI maintenance hygiene on every PR. Local-only: source never leaves the runner, nothing is uploaded."
+description: "Local-only GitHub Actions and CI maintenance check. Writes a sanitized counts-only summary; uploads nothing."
 author: "TaskBounty"
 branding:
   icon: "shield"

@@ -1,6 +1,6 @@
 {
   "name": "taskbounty-check",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Pre-launch safety check for AI-built apps (Lovable, Bolt, Replit, Cursor, v0). Scans your GitHub Actions + CI hygiene locally. Source code and workflow contents never leave your machine.",
   "type": "module",
   "bin": {
@@ -42,8 +42,7 @@
   "homepage": "https://www.task-bounty.com/ai-app-security-check",
   "repository": {
     "type": "git",
-    "url": "https://github.com/eliottreich/agent-bounty-board.git",
-    "directory": "packages/security-check-cli"
+    "url": "https://github.com/eliottreich/taskbounty-check.git"
   },
   "publishConfig": {
     "access": "public",

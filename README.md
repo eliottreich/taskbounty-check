@@ -69,6 +69,5 @@ workflows, or secrets.
 
 ## Security
 
-Zero runtime dependencies. Published with npm provenance; verify checksums. See the threat model
-(`design-docs/security-cli-threat-model.md`) and external-review packet
-(`design-docs/security-expansion/external-review-packet.md`) in the project repository.
+Zero runtime dependencies. Published with npm provenance; verify checksums. See
+[THREAT-MODEL.md](THREAT-MODEL.md), [SECURITY.md](SECURITY.md), and [PRIVACY.md](PRIVACY.md).

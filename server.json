@@ -1,0 +1,27 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.eliottreich/taskbounty-check",
+  "description": "Local GitHub Actions/CI maintenance check (action pinning, token perms). Not a full security audit.",
+  "repository": {
+    "url": "https://github.com/eliottreich/taskbounty-check",
+    "source": "github"
+  },
+  "version": "0.1.5",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "taskbounty-check",
+      "version": "0.1.5",
+      "transport": {
+        "type": "stdio"
+      },
+      "packageArguments": [
+        {
+          "type": "positional",
+          "value": "mcp",
+          "valueHint": "mcp"
+        }
+      ]
+    }
+  ]
+}

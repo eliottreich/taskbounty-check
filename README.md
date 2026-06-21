@@ -1,39 +1,58 @@
 # taskbounty-check
 
-Pre-launch safety check for AI-built apps. Built it with **Lovable, Bolt, Replit, Cursor, or v0**?
-This scans your **GitHub Actions + CI hygiene locally** before you ship. Your source code and
-workflow contents **never leave your machine**. The default code path makes **no outbound
-requests**; `fetch` is additionally blocked as defense in depth (this is not a complete network
-sandbox). Only `--gh-org` intentionally uses the network.
+**A local check for GitHub Actions and CI maintenance hygiene** (third-party action pinning,
+workflow token permissions, and update automation), built for apps shipped with Lovable, Bolt,
+Replit, Cursor, or v0.
 
-> **Scope, honestly:** this checks GitHub Actions workflow + update-automation hygiene. It does
-> **not** check exposed secrets, auth, payments, webhooks, or runtime behavior — those need a
-> manual review. It is a maintenance check, not a full security audit.
+**Local by default. No uploads. No telemetry.** It reads only your workflow files, on your machine.
+The default code path makes no outbound network requests, writes its report locally, and sends
+nothing anywhere. There is no analytics or phone-home of any kind. Only the opt-in `--gh-org` mode
+uses the network (through your own `gh` session).
 
-> **`--share` uploads nothing.** It writes a sanitized, counts-only local file for you to submit
-> **manually**; network stays off under `--share`.
+**Works with Cursor, Claude Code, and Codex** (local MCP server, below).
 
-## Quick start (60 seconds)
+## Three ways to use it
 
-```bash
-# 1. Scan the current repo locally (no network, writes a local report)
-npx taskbounty-check@latest .
+**1. GitHub Action** — add a maintenance check to CI that writes a summary to the run (no PR
+comments, no source upload):
 
-# 2. SARIF for GitHub Code Scanning
-npx taskbounty-check@latest . --format sarif --output taskbounty.sarif
-
-# 3. Scaffold a least-privilege CI workflow (previews; never overwrites)
-npx taskbounty-check@latest init
-
-# 4. Local MCP server for Codex / Claude Code / Cursor
-npx taskbounty-check@latest mcp
+```yaml
+permissions:
+  contents: read
+steps:
+  - uses: actions/checkout@v4
+  - run: npx taskbounty-check@0.1.5 . --github-summary --no-network
 ```
 
-Reproducible, pinned invocation (recommended): `npx taskbounty-check@0.1.4 .`
+**2. Agent / MCP** — a local stdio server for Cursor, Claude Code, and Codex:
 
-**Privacy:** the scan runs locally and **sends nothing by default**. Source code, workflow
-contents, filenames, line numbers, and evidence never leave your machine. The only thing that can
-ever be transmitted is a sanitized counts-only summary, and only when you explicitly choose to.
+```bash
+npx -y taskbounty-check@0.1.5 mcp
+```
+
+**3. One-off CLI** — scan the current repo locally and write a report:
+
+```bash
+npx -y taskbounty-check@0.1.5 .
+```
+
+> Pin a version (`@0.1.5`) in committed config and CI for reproducibility. `@latest` is convenient
+> for a quick one-off, but a pinned version is the reproducible choice.
+
+### A real GitHub job summary
+
+The Action writes a counts-only maintenance summary to the workflow run (categories and next steps,
+no filenames, line numbers, or repo source). Example from this repo's own CI:
+
+![TaskBounty check: GitHub Actions job summary](docs/job-summary.png)
+
+See it live: the **self-check** job in [this repository's Actions runs](https://github.com/eliottreich/taskbounty-check/actions).
+
+### Learn more
+
+- [Methodology](https://www.task-bounty.com/github-actions-security-check/methodology) — exactly what it reviews and how findings are labeled.
+- [Privacy and scope](https://www.task-bounty.com/ai-app-security-check) — local-by-default data handling.
+- [Limitations](#supported-checks-and-honest-limitations) — what it does NOT check (below).
 
 ## Supported checks (and honest limitations)
 
@@ -118,7 +137,7 @@ permissions:
   security-events: write
 steps:
   - uses: actions/checkout@v4
-  - run: npx taskbounty-check@latest . --format sarif --output taskbounty.sarif
+  - run: npx taskbounty-check@0.1.5 . --format sarif --output taskbounty.sarif
   - uses: github/codeql-action/upload-sarif@v3
     with:
       sarif_file: taskbounty.sarif
@@ -157,6 +176,7 @@ args = ["-y", "taskbounty-check@latest", "mcp"]
 
 ## Security
 
-Zero runtime dependencies. Published with npm provenance; verify checksums. See the threat model
-(`design-docs/security-cli-threat-model.md`) and external-review packet
-(`design-docs/security-expansion/external-review-packet.md`) in the project repository.
+Zero runtime dependencies. Published to npm with provenance (verify on the package's npm page). The
+default run makes no outbound requests and uploads nothing; see the
+[methodology](https://www.task-bounty.com/github-actions-security-check/methodology) for the full
+data-handling and scope boundaries.

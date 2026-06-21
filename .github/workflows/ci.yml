@@ -21,7 +21,9 @@ jobs:
       - run: npm test
       - run: npm pack --dry-run
 
-  # Dogfood: run the bundled Action on this repo and write a sanitized summary.
+  # Dogfood: run the bundled Action on this repo and write a sanitized summary,
+  # plus a populated demo summary (scanning a fixture with findings) so the run
+  # Summary page shows a real, non-empty maintenance table.
   self-check:
     runs-on: ubuntu-latest
     permissions:
@@ -32,3 +34,45 @@ jobs:
         with:
           node-version: "20"
       - run: node "$GITHUB_WORKSPACE/src/index.js" . --github-summary --no-network
+      - name: Demo summary (populated, for docs/screenshot)
+        run: |
+          mkdir -p /tmp/demo/.github/workflows
+          printf 'on: push\npermissions: write-all\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: tj-actions/changed-files@v47\n' > /tmp/demo/.github/workflows/ci.yml
+          node "$GITHUB_WORKSPACE/src/index.js" /tmp/demo --github-summary --no-network
+
+  # Verify the packed npm artifact: MCP initializes from it, and the agent skill
+  # has a valid skills.sh discovery shape.
+  artifact-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: "20"
+      - run: npm ci --no-audit --no-fund
+      - name: MCP initialization from the packed artifact
+        run: |
+          set -euo pipefail
+          npm pack
+          TGZ="$(ls taskbounty-check-*.tgz)"
+          VER="$(node -p "require('$GITHUB_WORKSPACE/package.json').version")"
+          mkdir -p /tmp/consume && cd /tmp/consume && npm init -y >/dev/null 2>&1
+          npm install "$GITHUB_WORKSPACE/$TGZ" >/dev/null 2>&1
+          OUT="$(printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | npx --no-install taskbounty-check mcp)"
+          echo "$OUT"
+          echo "$OUT" | grep -q '"serverInfo"' || { echo "::error::MCP did not initialize from the packed artifact"; exit 1; }
+          echo "$OUT" | grep -q "\"version\":\"$VER\"" || { echo "::error::MCP serverInfo version != package version $VER"; exit 1; }
+      - name: Agent skill discovery shape (skills.sh)
+        run: |
+          set -euo pipefail
+          test -f skills/taskbounty-security/SKILL.md || { echo "::error::SKILL.md missing"; exit 1; }
+          node -e '
+            const fs = require("fs");
+            const s = fs.readFileSync("skills/taskbounty-security/SKILL.md", "utf8");
+            const m = s.match(/^---\n([\s\S]*?)\n---/);
+            if (!m) { console.error("missing frontmatter"); process.exit(1); }
+            const fm = "\n" + m[1];
+            if (!/\nname:\s*\S/.test(fm)) { console.error("missing name"); process.exit(1); }
+            if (!/\ndescription:\s*\S/.test(fm)) { console.error("missing description"); process.exit(1); }
+            console.log("SKILL.md frontmatter OK");
+          '

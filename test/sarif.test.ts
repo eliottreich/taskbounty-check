@@ -54,6 +54,19 @@ describe("renderSarif", () => {
     expect(blob).not.toMatch(/ghp_[A-Za-z0-9]{20,}|-----BEGIN|process\.env|AWS_SECRET|password=/i);
   });
 
+  it("rules link to the methodology via helpUri with the sarif channel and a per-rule anchor", () => {
+    const rules = sarif.runs[0].tool.driver.rules as { id: string; helpUri: string }[];
+    expect(rules.length).toBeGreaterThan(0);
+    for (const r of rules) {
+      expect(r.helpUri).toContain("/github-actions-security-check/methodology");
+      expect(r.helpUri).toContain("utm_source=github&utm_medium=sarif&utm_campaign=agent_distribution");
+      const slug = r.id.replace(/^taskbounty\//, "");
+      expect(r.helpUri).toContain(`#rule-${slug}`);
+    }
+    // never any repo name or finding data in the help URL
+    expect(rules.every((r) => !/owner\/repo/.test(r.helpUri))).toBe(true);
+  });
+
   it("is deterministic for the same input", () => {
     const a = JSON.stringify(renderSarif(resultWith("on: push\npermissions: write-all")));
     const b = JSON.stringify(renderSarif(resultWith("on: push\npermissions: write-all")));

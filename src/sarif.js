@@ -17,8 +17,20 @@ const RULES = {
 const RULE_PREFIX = "taskbounty";
 const DEFAULT_LEVEL = "note";
 
+// Rule-help destination. Links to the public methodology, with a per-rule anchor when the rule is
+// a documented one. Channel-only utm — no repo name or finding data ever goes in the URL.
+const METHODOLOGY_URL =
+  "https://www.task-bounty.com/github-actions-security-check/methodology?utm_source=github&utm_medium=sarif&utm_campaign=agent_distribution";
+
+function ruleSlug(rule) {
+  return String(rule || "finding").replace(/[^a-z0-9_-]/gi, "-");
+}
 function ruleId(rule) {
-  return `${RULE_PREFIX}/${String(rule || "finding").replace(/[^a-z0-9_-]/gi, "-")}`;
+  return `${RULE_PREFIX}/${ruleSlug(rule)}`;
+}
+// Anchor to the specific rule section on the methodology page for documented rules.
+function ruleHelpUri(rule) {
+  return RULES[rule] ? `${METHODOLOGY_URL}#rule-${ruleSlug(rule)}` : METHODOLOGY_URL;
 }
 
 // Map our severity to a SARIF level when the rule has no explicit one.
@@ -45,7 +57,7 @@ export function renderSarif(result) {
         shortDescription: { text: meta.name },
         fullDescription: { text: meta.help },
         defaultConfiguration: { level: meta.level || DEFAULT_LEVEL },
-        helpUri: "https://www.task-bounty.com/github-actions-security-check/methodology",
+        helpUri: ruleHelpUri(e.rule),
         properties: { category: e.category || "other" },
       });
     }

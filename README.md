@@ -21,7 +21,7 @@ permissions:
   contents: read
 steps:
   - uses: actions/checkout@v4
-  - run: npx taskbounty-check@0.1.5 . --github-summary --no-network
+  - run: npx taskbounty-check@0.1.6 . --github-summary --no-network
 ```
 
 Want a human to interpret or fix what the Action surfaces? [Request a free launch-safety review](https://www.task-bounty.com/ai-app-security-check/review?utm_source=github&utm_medium=marketplace&utm_campaign=agent_distribution). TaskBounty gets no access to your repo, source, or workflows unless you submit that form.
@@ -29,16 +29,16 @@ Want a human to interpret or fix what the Action surfaces? [Request a free launc
 **2. Agent / MCP** — a local stdio server for Cursor, Claude Code, and Codex:
 
 ```bash
-npx -y taskbounty-check@0.1.5 mcp
+npx -y taskbounty-check@0.1.6 mcp
 ```
 
 **3. One-off CLI** — scan the current repo locally and write a report:
 
 ```bash
-npx -y taskbounty-check@0.1.5 .
+npx -y taskbounty-check@0.1.6 .
 ```
 
-> Pin a version (`@0.1.5`) in committed config and CI for reproducibility. `@latest` is convenient
+> Pin a version (`@0.1.6`) in committed config and CI for reproducibility. `@latest` is convenient
 > for a quick one-off, but a pinned version is the reproducible choice.
 
 ### The GitHub job summary
@@ -140,7 +140,7 @@ permissions:
   security-events: write
 steps:
   - uses: actions/checkout@v4
-  - run: npx taskbounty-check@0.1.5 . --format sarif --output taskbounty.sarif
+  - run: npx taskbounty-check@0.1.6 . --format sarif --output taskbounty.sarif
   - uses: github/codeql-action/upload-sarif@v3
     with:
       sarif_file: taskbounty.sarif

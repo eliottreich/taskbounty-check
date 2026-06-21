@@ -2,7 +2,7 @@
 // the TaskBounty app (src/lib/security-check/scanner.ts). A parity test asserts it stays in sync.
 // Pure: takes workflow file contents, returns findings. No network, no fs, no execution.
 
-export const SCANNER_VERSION = "actions-audit@1.0.0";
+export const SCANNER_VERSION = "actions-audit@1.0.1";
 
 const TRUSTED = /^(actions|github|docker)\//;
 const SEVERITY_ORDER = ["LOW", "MODERATE", "HIGH", "CRITICAL"];
@@ -11,14 +11,30 @@ function down(sev) {
   return { CRITICAL: "HIGH", HIGH: "MODERATE", MODERATE: "LOW", LOW: "LOW" }[sev] ?? sev;
 }
 
+// Keep only YAML structure for rules that inspect keys such as `uses:` and `permissions:`.
+// Shell scripts can contain YAML-looking fixtures or heredocs; those strings are data, not live
+// workflow configuration. Empty placeholders preserve the original line numbers.
+function structuralLines(lines) {
+  let blockScalarIndent = null;
+  return lines.map((line) => {
+    const indent = (line.match(/^\s*/) ?? [""])[0].replace(/\t/g, "  ").length;
+    if (blockScalarIndent !== null) {
+      if (!line.trim() || indent > blockScalarIndent) return "";
+      blockScalarIndent = null;
+    }
+
+    if (/^\s*(?:-\s*)?[^#\s][^:]*:\s*[>|](?:[+-]?[1-9]?|[1-9]?[+-]?)?\s*(?:#.*)?$/.test(line)) {
+      blockScalarIndent = indent;
+    }
+    return line;
+  });
+}
+
 function unpinnedActions(lines, file, repoFullName) {
   const out = [];
   const ownLower = (repoFullName || "").toLowerCase();
   lines.forEach((line, i) => {
-    const u = line.indexOf("uses:");
-    const h = line.indexOf("#");
-    if (u === -1 || (h !== -1 && h < u)) return;
-    const m = line.match(/\buses:\s*['"]?([^@'"\s]+)@([^\s'"#]+)/);
+    const m = line.match(/^\s*(?:-\s*)?uses:\s*['"]?([^@'"\s]+)@([^\s'"#]+)/);
     if (!m) return;
     const [, action, ref] = m;
     if (action.startsWith("./") || action.startsWith("docker://")) return;
@@ -41,13 +57,13 @@ function unpinnedActions(lines, file, repoFullName) {
   return out;
 }
 
-function permissions(text, file) {
-  if (/permissions:\s*write-all/.test(text)) {
+function permissions(lines, file) {
+  if (lines.some((line) => /^\s*permissions:\s*write-all\s*(?:#.*)?$/.test(line))) {
     return [{ rule: "broad-permissions", class: "hygiene", strong: true, severity: "HIGH", file, line: null,
       detail: "permissions: write-all grants the workflow token full write scope across the repo.",
       fix: "Set least-privilege permissions (e.g. top-level `permissions: read-all`) and elevate per-job only where a step needs write." }];
   }
-  if (!/^\s*permissions:/m.test(text)) {
+  if (!lines.some((line) => /^\s*permissions:/.test(line))) {
     return [{ rule: "no-permissions-block", class: "hygiene", strong: false, severity: "MODERATE", file, line: null,
       detail: "No explicit permissions: block. The workflow token may default to broad write access depending on repo settings.",
       fix: "Add a top-level `permissions: read-all` (or minimal `contents: read`) and grant writes per-job as needed." }];
@@ -86,9 +102,10 @@ function scriptInjection(lines, file) {
 
 export function auditWorkflow(wf, repoFullName) {
   const lines = wf.text.split("\n");
+  const structure = structuralLines(lines);
   return [
-    ...unpinnedActions(lines, wf.path, repoFullName),
-    ...permissions(wf.text, wf.path),
+    ...unpinnedActions(structure, wf.path, repoFullName),
+    ...permissions(structure, wf.path),
     ...prTargetCheckout(wf.text, wf.path),
     ...scriptInjection(lines, wf.path),
   ];

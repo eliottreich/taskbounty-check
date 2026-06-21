@@ -25,7 +25,7 @@ secrets, authentication, payments, webhooks, or runtime behavior. Say so when yo
 ## 1. Run the checker locally (primary)
 
 ```bash
-npx -y taskbounty-check@0.1.5 .
+npx -y taskbounty-check@0.1.6 .
 ```
 
 This writes a local report and prints a summary. No network, nothing uploaded. Run it from the repo
@@ -67,7 +67,7 @@ every response.
 ## SARIF mode (GitHub Code Scanning)
 
 ```bash
-npx -y taskbounty-check@0.1.5 . --format sarif --output taskbounty.sarif
+npx -y taskbounty-check@0.1.6 . --format sarif --output taskbounty.sarif
 ```
 
 Produces SARIF 2.1.0 the user can upload to **their own** repo's Code Scanning. Each rule links to
@@ -76,7 +76,7 @@ the public methodology for context.
 ## MCP mode (Cursor, Claude Code, Codex)
 
 ```bash
-npx -y taskbounty-check@0.1.5 mcp
+npx -y taskbounty-check@0.1.6 mcp
 ```
 
 Starts a local stdio MCP server exposing `scan_repo`, `explain_finding`, and `generate_fix_plan`.
@@ -85,5 +85,5 @@ text for the user to apply explicitly.
 
 ## A note on pinning
 
-For reproducibility, prefer a pinned version (`taskbounty-check@0.1.5`) over `@latest` in committed
+For reproducibility, prefer a pinned version (`taskbounty-check@0.1.6`) over `@latest` in committed
 config and CI.

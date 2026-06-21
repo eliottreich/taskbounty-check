@@ -1,6 +1,6 @@
 {
   "name": "taskbounty-check",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "mcpName": "io.github.eliottreich/taskbounty-check",
   "description": "Pre-launch safety check for AI-built apps (Lovable, Bolt, Replit, Cursor, v0). Scans your GitHub Actions + CI hygiene locally. Source code and workflow contents never leave your machine.",
   "type": "module",

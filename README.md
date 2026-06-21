@@ -2,14 +2,16 @@
 
 Pre-launch safety check for AI-built apps. Built it with **Lovable, Bolt, Replit, Cursor, or v0**?
 This scans your **GitHub Actions + CI hygiene locally** before you ship. Your source code and
-workflow contents **never leave your machine**. Network is **off by default**.
+workflow contents **never leave your machine**. The default code path makes **no outbound
+requests**; `fetch` is additionally blocked as defense in depth (this is not a complete network
+sandbox). Only `--gh-org` intentionally uses the network.
 
 > **Scope, honestly:** this checks GitHub Actions workflow + update-automation hygiene. It does
 > **not** check exposed secrets, auth, payments, webhooks, or runtime behavior — those need a
 > manual review. It is a maintenance check, not a full security audit.
 
-> **Upload status:** automatic upload (`--share` → API) is disabled during the pilot. `--share`
-> only produces a sanitized summary for you to paste into TaskBounty.
+> **`--share` uploads nothing.** It writes a sanitized, counts-only local file for you to submit
+> **manually**; network stays off under `--share`.
 
 ## Quick start (60 seconds)
 
@@ -27,7 +29,7 @@ npx taskbounty-check@latest init
 npx taskbounty-check@latest mcp
 ```
 
-Reproducible, pinned invocation (recommended): `npx taskbounty-check@0.1.2 .`
+Reproducible, pinned invocation (recommended): `npx taskbounty-check@0.1.4 .`
 
 **Privacy:** the scan runs locally and **sends nothing by default**. Source code, workflow
 contents, filenames, line numbers, and evidence never leave your machine. The only thing that can
@@ -74,16 +76,16 @@ Run `--explain-data` to print this at any time.
   secrets, SSH keys, credential stores, or anything outside the selected repository roots.
   Symlinks that escape a root are skipped, never followed.
 - **Writes (local only):** `<out>.json` (full detail) and `<out>.html`.
-- **Transmits:** nothing by default. `--share` produces a *sanitized summary* (scan id, label, candidate
-  counts by category, private-review **count**, scanner version, timestamps; repo names only with
-  `--include-repo-names`) that you copy and paste into TaskBounty yourself. Automatic upload is
-  disabled during the pilot.
+- **Transmits:** nothing by default. **`--share` uploads nothing** — it writes a *sanitized,
+  counts-only* file (scan id, label, candidate counts by category, private-review **count**,
+  scanner version, timestamps; repo names only with `--include-repo-names`) for you to submit
+  **manually**. Network stays off under `--share`. Only `--gh-org` intentionally uses the network.
 
 ## Flags
 
 `--share` · `--gh-org <org>` · `--manifest <file>` · `--org-label <label>` ·
 `--include-repo-names` · `--dry-run` · `--explain-data` · `--delete-local-report` ·
-`--no-network` (default unless `--share`/`--gh-org`) · `--out <basename>` · `--version` · `--help`
+`--no-network` (default everywhere except `--gh-org`) · `--out <basename>` · `--version` · `--help`
 
 ## Want help interpreting or fixing these results?
 

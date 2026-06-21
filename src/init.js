@@ -8,7 +8,9 @@ import { resolve, join, dirname } from "node:path";
 
 export const WORKFLOW_RELPATH = ".github/workflows/taskbounty-check.yml";
 
-// actions/checkout pinned to a commit SHA (v4.2.2). Least-privilege: contents: read only.
+// Every action is pinned to a full commit SHA (supply-chain safety) — no @latest, no movable
+// tags. The TaskBounty Action is pinned to a verified release commit; checkout to a release SHA.
+// Least-privilege: contents: read only.
 export const WORKFLOW_CONTENT = `# Added by \`npx taskbounty-check init\`. GitHub Actions + CI maintenance hygiene on every PR.
 # Local-only check: it reads your workflow config on the runner and writes a sanitized job
 # summary. It does not upload source, comment on PRs, or open issues.
@@ -26,8 +28,8 @@ jobs:
   taskbounty-check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - run: npx taskbounty-check@latest . --github-summary --no-network
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - uses: eliottreich/taskbounty-check@8b5fa6b2b9f33e4bbd9670823b2c678efe31e404 # v0.1.3
 `;
 
 /**

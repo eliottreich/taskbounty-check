@@ -9,12 +9,17 @@ beforeEach(() => { dir = mkdtempSync(join(tmpdir(), "tbinit-")); });
 afterEach(() => { rmSync(dir, { recursive: true, force: true }); });
 
 describe("init workflow generation", () => {
-  it("the generated workflow is least-privilege and SHA-pinned", () => {
+  it("the generated workflow is least-privilege, SHA-pinned, and never uses @latest", () => {
     expect(WORKFLOW_CONTENT).toContain("permissions:\n  contents: read");
-    // SHA-pinned action (40-hex), not a tag/branch
-    expect(WORKFLOW_CONTENT).toMatch(/actions\/checkout@[0-9a-f]{40}/);
-    expect(WORKFLOW_CONTENT).toContain("--github-summary");
-    expect(WORKFLOW_CONTENT).toContain("--no-network");
+    // never a movable ref
+    expect(WORKFLOW_CONTENT).not.toContain("@latest");
+    // both the TaskBounty Action and checkout are pinned to a full 40-hex commit SHA
+    expect(WORKFLOW_CONTENT).toMatch(/eliottreich\/taskbounty-check@[0-9a-f]{40}\b/);
+    expect(WORKFLOW_CONTENT).toMatch(/actions\/checkout@[0-9a-f]{40}\b/);
+    // every `uses:` line is SHA-pinned (no @vN tag, no @branch)
+    const uses = WORKFLOW_CONTENT.split("\n").filter((l) => l.includes("uses:"));
+    expect(uses.length).toBeGreaterThanOrEqual(2);
+    for (const u of uses) expect(u).toMatch(/@[0-9a-f]{40}\b/);
     // does nothing privileged
     expect(WORKFLOW_CONTENT).not.toMatch(/security-events:|pull-requests:\s*write|issues:\s*write/);
   });

@@ -14,6 +14,15 @@ export function newScanId() {
   return randomBytes(9).toString("hex");
 }
 
+// Network policy. ONLY --gh-org intentionally uses the network (it fetches an org's workflow files
+// via the user's gh session). Default scanning and --share are local: --share writes a sanitized
+// file for manual submission and uploads nothing, so it keeps the no-network guard. `networking`
+// true => the run is allowed network; `conflict` true => --no-network was combined with --gh-org.
+export function resolveNetworkPolicy(flags = {}) {
+  const networking = Boolean(flags.ghOrg);
+  return { networking, conflict: Boolean(flags.noNetwork && networking) };
+}
+
 // Conversion CTA. STATIC by construction: only a fixed placement label varies. The CLI must never
 // put repository names, findings, filenames, counts, or evidence in this URL.
 const REVIEW_BASE = "https://www.task-bounty.com/ai-app-security-check/review";

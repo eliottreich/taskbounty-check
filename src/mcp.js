@@ -102,7 +102,8 @@ function respondError(id, code, message) {
   process.stdout.write(JSON.stringify({ jsonrpc: "2.0", id, error: { code, message } }) + "\n");
 }
 
-/** Run the stdio MCP server. Network is hard-disabled; stdout carries only protocol JSON. */
+/** Run the stdio MCP server. No outbound requests by default (fetch blocked as defense in depth);
+ *  stdout carries only protocol JSON. */
 export function runMcp() {
   installNoNetworkGuard();
   process.stderr.write("[taskbounty-check mcp] ready on stdio (local only, no network)\n");

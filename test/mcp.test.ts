@@ -2,7 +2,10 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { MCP_TOOLS, callMcpTool } from "../src/mcp.js";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname } from "node:path";
+import { MCP_TOOLS, callMcpTool, PKG_VERSION } from "../src/mcp.js";
 
 let repo: string;
 beforeAll(() => {
@@ -15,6 +18,11 @@ afterAll(() => rmSync(repo, { recursive: true, force: true }));
 describe("local MCP tools", () => {
   it("exposes exactly the three documented tools", () => {
     expect(MCP_TOOLS.map((t) => t.name).sort()).toEqual(["explain_finding", "generate_fix_plan", "scan_repo"]);
+  });
+
+  it("serverInfo version is read from package.json (never a stale literal)", () => {
+    const pkg = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "package.json"), "utf8"));
+    expect(PKG_VERSION).toBe(pkg.version);
   });
 
   it("scan_repo returns a text summary of a local repo", () => {

@@ -24,6 +24,8 @@ steps:
   - run: npx taskbounty-check@0.1.5 . --github-summary --no-network
 ```
 
+Want a human to interpret or fix what the Action surfaces? [Request a free launch-safety review](https://www.task-bounty.com/ai-app-security-check/review?utm_source=github&utm_medium=marketplace&utm_campaign=agent_distribution). TaskBounty gets no access to your repo, source, or workflows unless you submit that form.
+
 **2. Agent / MCP** — a local stdio server for Cursor, Claude Code, and Codex:
 
 ```bash
@@ -42,12 +44,12 @@ npx -y taskbounty-check@0.1.5 .
 ### The GitHub job summary
 
 The Action writes a counts-only maintenance summary to the workflow run (categories and next steps,
-no filenames, line numbers, or repo source). Below is that exact summary, rendered from this repo.s
+no filenames, line numbers, or repo source). Below is that exact summary, rendered from this repo's
 own CI output:
 
 ![TaskBounty check: GitHub Actions maintenance summary](docs/job-summary.png)
 
-See it produced live by the **self-check** job in [this repository.s Actions runs](https://github.com/eliottreich/taskbounty-check/actions).
+See it produced live by the **self-check** job in [this repository's Actions runs](https://github.com/eliottreich/taskbounty-check/actions).
 
 ### Learn more
 

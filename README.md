@@ -11,36 +11,40 @@ workflow contents **never leave your machine**. Network is **off by default**.
 > **Upload status:** automatic upload (`--share` → API) is disabled during the pilot. `--share`
 > only produces a sanitized summary for you to paste into TaskBounty.
 
+## Quick start (60 seconds)
+
 ```bash
-# scan the current repo (no network, writes a local report)
+# 1. Scan the current repo locally (no network, writes a local report)
 npx taskbounty-check@latest .
 
-# reproducible, pinned invocation (recommended)
-npx taskbounty-check@<exact-version> .
+# 2. SARIF for GitHub Code Scanning
+npx taskbounty-check@latest . --format sarif --output taskbounty.sarif
+
+# 3. Scaffold a least-privilege CI workflow (previews; never overwrites)
+npx taskbounty-check@latest init
+
+# 4. Local MCP server for Codex / Claude Code / Cursor
+npx taskbounty-check@latest mcp
 ```
 
-## GitHub Action
+Reproducible, pinned invocation (recommended): `npx taskbounty-check@0.1.2 .`
 
-Add the check to a pull-request workflow with read-only permissions:
+**Privacy:** the scan runs locally and **sends nothing by default**. Source code, workflow
+contents, filenames, line numbers, and evidence never leave your machine. The only thing that can
+ever be transmitted is a sanitized counts-only summary, and only when you explicitly choose to.
 
-```yaml
-name: TaskBounty Check
+## Supported checks (and honest limitations)
 
-on: [pull_request]
+**Checks (GitHub Actions + CI maintenance hygiene):**
+- Third-party actions pinned to a movable tag/branch instead of a commit SHA
+- Broad (write-all) workflow token permissions
+- Missing explicit `permissions:` block
+- Update automation (Dependabot/Renovate) presence
+- Context-dependent workflow patterns flagged for private review (e.g. `pull_request_target`, script injection)
 
-permissions:
-  contents: read
-
-jobs:
-  check:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
-      - uses: eliottreich/taskbounty-check@v1
-```
-
-The Action writes a sanitized counts-only summary to the GitHub job summary. It uploads nothing,
-reads no secrets, and does not fail the build.
+**Does NOT check** (these need a manual review): exposed secrets, auth/authorization, payments,
+webhooks, runtime behavior. It is a maintenance/hygiene check, **not** a full security audit or a
+penetration test.
 
 ## What it does
 
@@ -84,13 +88,73 @@ Run `--explain-data` to print this at any time.
 ## Want help interpreting or fixing these results?
 
 Request a free 20-minute launch-safety review:
-https://www.task-bounty.com/ai-app-security-check/review
+https://www.task-bounty.com/ai-app-security-check/review?utm_source=npm&utm_medium=npm_readme&utm_campaign=workflow_security
 
 **TaskBounty receives nothing unless you submit that form.** The scan runs locally and the full
 report stays on your machine; the review form gives us no access to your repositories, source,
 workflows, or secrets.
 
+## GitHub Code Scanning (SARIF)
+
+Emit SARIF 2.1.0 and surface findings in your repo's Security → Code scanning tab:
+
+```bash
+npx taskbounty-check@latest . --format sarif --output taskbounty.sarif
+```
+
+The SARIF carries deterministic rule ids (`taskbounty/<rule>`), severity levels, and file/line
+references — **no source contents, secrets, or environment values**, and no network access.
+Confirmed findings are emitted as `kind: fail`; lower-confidence items as `kind: review`.
+
+Help interpreting SARIF results: https://www.task-bounty.com/ai-app-security-check/review?utm_source=github&utm_medium=sarif_docs&utm_campaign=workflow_security
+
+Upload it with the official action (full example in [`examples/code-scanning.yml`](examples/code-scanning.yml)):
+
+```yaml
+permissions:
+  contents: read
+  security-events: write
+steps:
+  - uses: actions/checkout@v4
+  - run: npx taskbounty-check@latest . --format sarif --output taskbounty.sarif
+  - uses: github/codeql-action/upload-sarif@v3
+    with:
+      sarif_file: taskbounty.sarif
+```
+
+## Local agent (MCP)
+
+Run a **local** stdio MCP server so Codex, Claude Code, or Cursor can scan and reason about findings
+in your editor. It runs locally, makes **zero outbound network requests**, uploads no source, and
+**never modifies files** — `generate_fix_plan` returns a plan as text for you to apply yourself.
+
+```bash
+npx taskbounty-check@latest mcp
+```
+
+Tools: `scan_repo` (local scan summary), `explain_finding` (plain-language explanation), `generate_fix_plan` (text fix plan).
+
+Want a human to review the plan? https://www.task-bounty.com/ai-app-security-check/review?utm_source=mcp&utm_medium=mcp_docs&utm_campaign=workflow_security
+
+**Cursor** — `.cursor/mcp.json`:
+```json
+{ "mcpServers": { "taskbounty-check": { "command": "npx", "args": ["-y", "taskbounty-check@latest", "mcp"] } } }
+```
+
+**Claude Code**:
+```bash
+claude mcp add taskbounty-check -- npx -y taskbounty-check@latest mcp
+```
+
+**Codex** — in `~/.codex/config.toml`:
+```toml
+[mcp_servers.taskbounty-check]
+command = "npx"
+args = ["-y", "taskbounty-check@latest", "mcp"]
+```
+
 ## Security
 
-Zero runtime dependencies. Published with npm provenance; verify checksums. See
-[THREAT-MODEL.md](THREAT-MODEL.md), [SECURITY.md](SECURITY.md), and [PRIVACY.md](PRIVACY.md).
+Zero runtime dependencies. Published with npm provenance; verify checksums. See the threat model
+(`design-docs/security-cli-threat-model.md`) and external-review packet
+(`design-docs/security-expansion/external-review-packet.md`) in the project repository.

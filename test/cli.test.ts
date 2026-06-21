@@ -157,6 +157,43 @@ describe("github step summary is sanitized aggregates only", () => {
   });
 });
 
+describe("workflow syntax boundaries", () => {
+  it("does not treat YAML-looking shell fixtures as live workflow configuration", () => {
+    const workflow = `on: push
+permissions:
+  contents: read
+jobs:
+  demo:
+    runs-on: ubuntu-latest
+    steps:
+      - run: printf 'permissions: write-all\\n- uses: tj-actions/changed-files@v47\\n'
+      - run: |
+          cat <<'YAML'
+          permissions: write-all
+          - uses: tj-actions/changed-files@v47
+          YAML
+`;
+    const audit = cliAudit([{ path: ".github/workflows/ci.yml", text: workflow }], "owner/repo");
+    expect(audit.findings.map((finding) => finding.rule)).not.toContain("broad-permissions");
+    expect(audit.findings.map((finding) => finding.rule)).not.toContain("unpinned-action");
+  });
+
+  it("still detects real workflow keys", () => {
+    const workflow = `on: push
+permissions: write-all
+jobs:
+  demo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: tj-actions/changed-files@v47
+`;
+    const audit = cliAudit([{ path: ".github/workflows/ci.yml", text: workflow }], "owner/repo");
+    expect(audit.findings.map((finding) => finding.rule)).toEqual(
+      expect.arrayContaining(["broad-permissions", "unpinned-action"]),
+    );
+  });
+});
+
 describe("user-facing text never describes --share as uploading", () => {
   // Strip the only legitimate uses of the word: negations that say nothing is uploaded.
   const stripNegations = (s: string) =>

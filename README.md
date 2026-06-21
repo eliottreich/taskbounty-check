@@ -51,6 +51,9 @@ own CI output:
 
 See it produced live by the **self-check** job in [this repository's Actions runs](https://github.com/eliottreich/taskbounty-check/actions).
 
+Prefer a guided walkthrough? Follow the
+[five-minute real-repository quickstart](docs/real-repo-quickstart.md).
+
 ### Learn more
 
 - [Methodology](https://www.task-bounty.com/github-actions-security-check/methodology) — exactly what it reviews and how findings are labeled.

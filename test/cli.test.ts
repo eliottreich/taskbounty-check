@@ -2,9 +2,16 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { mkdtempSync, mkdirSync, writeFileSync, symlinkSync, rmSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { execFileSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import { dirname } from "node:path";
 import { scanRepoRoots, scanInput, toSanitizedSummary, assertSanitizedSummarySafe, reviewCtaUrl, renderHtml, buildNormalizedResult } from "../src/lib.js";
 import { auditWorkflows as cliAudit } from "../src/scanner.js";
 import { installNoNetworkGuard, restoreNetwork } from "../src/net.js";
+
+const CLI = join(dirname(fileURLToPath(import.meta.url)), "..", "src", "index.js");
+const run = (...args: string[]) =>
+  execFileSync("node", [CLI, ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
 
 let dir: string;
 let repo: string;
@@ -147,5 +154,30 @@ describe("github step summary is sanitized aggregates only", () => {
     expect((md.match(/\/ai-app-security-check\/review/g) || []).length).toBe(1);
     // no filenames, repo names, file:line refs, or exploit markers
     expect(md).not.toMatch(/\.ya?ml|owner\/secret-app|\.github\/workflows|onerror|alert\(/i);
+  });
+});
+
+describe("user-facing text never describes --share as uploading", () => {
+  // Strip the only legitimate uses of the word: negations that say nothing is uploaded.
+  const stripNegations = (s: string) =>
+    s
+      .replace(/uploads?\s+nothing/gi, "")
+      .replace(/nothing\b[^.]*\buploaded\b/gi, "")
+      .replace(/never\s+uploads?/gi, "");
+
+  it("dry-run says report files are local and nothing is uploaded (no 'unless --share')", () => {
+    const out = run(repo, "--dry-run");
+    expect(out).toContain("nothing would be uploaded");
+    expect(out).not.toMatch(/unless\s+--share/i);
+    expect(stripNegations(out)).not.toMatch(/upload/i);
+  });
+
+  it("no --help or --explain-data line ties an affirmative 'upload' to --share", () => {
+    const text = run("--help") + "\n" + run("--explain-data");
+    const shareLines = text.split(/\n/).filter((l) => /--share/.test(l) || /\bshare\b/i.test(l));
+    for (const line of shareLines) {
+      // after removing "uploads nothing"-style negations, no bare "upload" may remain
+      expect(stripNegations(line)).not.toMatch(/upload/i);
+    }
   });
 });

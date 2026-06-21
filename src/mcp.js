@@ -4,10 +4,20 @@
 // returned as TEXT for the user/agent to apply explicitly. Diagnostics go to stderr only so they
 // never corrupt the protocol stream on stdout.
 
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
 import { scanInput } from "./lib.js";
 import { installNoNetworkGuard } from "./net.js";
 
 const PROTOCOL_VERSION = "2024-11-05";
+
+// Report the real package version so the MCP banner can never drift from package.json.
+export const PKG_VERSION = (() => {
+  try {
+    return JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "package.json"), "utf8")).version || "0.0.0";
+  } catch { return "0.0.0"; }
+})();
 
 // Static knowledge base — no network, no source needed.
 const KB = {
@@ -127,7 +137,7 @@ export function runMcp() {
 function handleMessage(msg) {
   const { id, method, params } = msg || {};
   if (method === "initialize") {
-    return respond(id, { protocolVersion: PROTOCOL_VERSION, capabilities: { tools: {} }, serverInfo: { name: "taskbounty-check", version: "0.1.3" } });
+    return respond(id, { protocolVersion: PROTOCOL_VERSION, capabilities: { tools: {} }, serverInfo: { name: "taskbounty-check", version: PKG_VERSION } });
   }
   if (method === "notifications/initialized" || method === "notifications/cancelled") return; // no response for notifications
   if (method === "ping") return respond(id, {});

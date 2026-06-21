@@ -201,7 +201,7 @@ async function main() {
 
   if (flags.dryRun) {
     console.log(`[dry-run] ${summaryLine}`);
-    console.log(`[dry-run] would write ${flags.out}.json and ${flags.out}.html (local only); would upload nothing unless --share.`);
+    console.log(`[dry-run] would write local report files only (${flags.out}.json and ${flags.out}.html); nothing would be uploaded.`);
     return;
   }
 

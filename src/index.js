@@ -6,13 +6,12 @@
 import { writeFileSync, unlinkSync, existsSync, readFileSync, appendFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { execFileSync } from "node:child_process";
-import { scanRepoRoots, scanInput, newScanId, toSanitizedSummary, assertSanitizedSummarySafe, renderHtml, buildNormalizedResult, reviewCtaUrl, REVIEW_CTA_TEXT, renderGithubSummary } from "./lib.js";
+import { scanRepoRoots, scanInput, newScanId, toSanitizedSummary, assertSanitizedSummarySafe, renderHtml, buildNormalizedResult, SCANNER_VERSION, reviewCtaUrl, REVIEW_CTA_TEXT, renderGithubSummary, renderSarif } from "./lib.js";
 import { auditWorkflows } from "./scanner.js";
 import { installNoNetworkGuard } from "./net.js";
-
-const PACKAGE_VERSION = JSON.parse(
-  readFileSync(new URL("../package.json", import.meta.url), "utf8"),
-).version;
+import { planInit, writeInit, WORKFLOW_RELPATH } from "./init.js";
+import { runMcp } from "./mcp.js";
+import { createInterface } from "node:readline";
 
 function parseArgs(argv) {
   const flags = { share: false, dryRun: false, explainData: false, deleteReport: false, ghOrg: null, manifest: null, orgLabel: null, includeRepoNames: false, out: "actions-check-report" };
@@ -26,11 +25,14 @@ function parseArgs(argv) {
     else if (a === "--no-network") flags.noNetwork = true;
     else if (a === "--include-repo-names") flags.includeRepoNames = true;
     else if (a === "--github-summary") flags.githubSummary = true;
+    else if (a === "--yes" || a === "-y") flags.yes = true;
+    else if (a === "--format") flags.format = argv[++i];
+    else if (a === "--output") flags.output = argv[++i];
     else if (a === "--gh-org") flags.ghOrg = argv[++i];
     else if (a === "--manifest") flags.manifest = argv[++i];
     else if (a === "--org-label") flags.orgLabel = argv[++i];
     else if (a === "--out") flags.out = argv[++i];
-    else if (a === "--version" || a === "-v") { console.log(`taskbounty-check@${PACKAGE_VERSION}`); process.exit(0); }
+    else if (a === "--version" || a === "-v") { console.log(SCANNER_VERSION); process.exit(0); }
     else if (a === "--help" || a === "-h") { printHelp(); process.exit(0); }
     else if (!a.startsWith("-")) paths.push(a);
   }
@@ -44,6 +46,8 @@ Built it with Lovable, Bolt, Replit, Cursor, or v0? This checks your GitHub Acti
 locally before you ship. Your source code and workflow contents never leave your machine.
 
 Usage:
+  npx taskbounty-check init                    scaffold a least-privilege GitHub workflow (previews; never overwrites)
+  npx taskbounty-check mcp                      run a LOCAL stdio MCP server (scan_repo, explain_finding, generate_fix_plan)
   npx taskbounty-check [path ...]              scan a repo, or a directory of repos
   npx taskbounty-check --manifest repos.json   scan explicit local paths (JSON array)
   npx taskbounty-check --gh-org <org>          scan an org via your existing gh session (NETWORK)
@@ -58,6 +62,8 @@ Flags:
   --explain-data          print exactly what is read, written, and (optionally) transmitted, then exit
   --delete-local-report   delete the local report files after running
   --github-summary        write ONLY a sanitized counts summary to $GITHUB_STEP_SUMMARY (for CI; no files, no upload)
+  --format sarif          emit SARIF 2.1.0 for GitHub Code Scanning (rule ids + file/line; no source/secrets/env)
+  --output <file>         output path for --format sarif (default: taskbounty.sarif)
   --no-network            hard-disable all network (default unless --share/--gh-org)
   --out <basename>        output basename (default: actions-check-report)
 
@@ -113,8 +119,46 @@ function scanGhOrg(org) {
   return buildNormalizedResult({ repos, orgLabel: org, scanId: newScanId(), generatedAt: new Date().toISOString() });
 }
 
+function confirm(question) {
+  // Interactive y/N. If stdin is not a TTY (e.g. CI), resolve false (caller requires --yes there).
+  if (!process.stdin.isTTY) return Promise.resolve(false);
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  return new Promise((res) => rl.question(question, (a) => { rl.close(); res(/^y(es)?$/i.test(a.trim())); }));
+}
+
+async function runInit(dir, flags) {
+  const plan = planInit(dir);
+  console.log(`taskbounty-check init — proposes ${WORKFLOW_RELPATH}\n`);
+  if (!plan.isRepo) console.log("Note: this directory does not look like a git repo (no .git). Proceeding anyway.\n");
+  console.log("Proposed workflow (least-privilege, SHA-pinned):\n");
+  console.log(plan.content);
+
+  if (plan.exists) {
+    console.log(`\n${plan.targetPath} already exists — leaving it unchanged. (init never overwrites.)`);
+    return;
+  }
+  if (flags.dryRun) {
+    console.log(`\n[dry-run] would write ${plan.targetPath}. Nothing written.`);
+    return;
+  }
+  const ok = flags.yes || (await confirm(`\nWrite this file to ${plan.targetPath}? [y/N] `));
+  if (!ok) {
+    console.log(process.stdin.isTTY ? "Aborted; nothing written." : "Not a TTY; re-run with --yes to write it (or --dry-run to preview). Nothing written.");
+    return;
+  }
+  const r = writeInit(plan);
+  console.log(r === "written"
+    ? `\nWrote ${plan.targetPath}. Review it and commit it yourself — this tool never commits, pushes, comments, or opens PRs.`
+    : `\n${plan.targetPath} already exists — left unchanged.`);
+}
+
 async function main() {
   const { paths, flags } = parseArgs(process.argv.slice(2));
+
+  // Subcommands (first positional token). `init` scaffolds a workflow; `mcp` runs a local
+  // stdio MCP server. Neither uploads anything.
+  if (paths[0] === "init") { await runInit(paths[1] || ".", flags); return; }
+  if (paths[0] === "mcp") { runMcp(); return; }
 
   if (flags.explainData) { console.log(DATA_DOC); return; }
 
@@ -150,6 +194,17 @@ async function main() {
   if (flags.dryRun) {
     console.log(`[dry-run] ${summaryLine}`);
     console.log(`[dry-run] would write ${flags.out}.json and ${flags.out}.html (local only); would upload nothing unless --share.`);
+    return;
+  }
+
+  // ---- SARIF mode: write SARIF 2.1.0 for GitHub Code Scanning (no html/json, no upload) ----
+  // SARIF carries rule ids + a short message + file/line only — no source, secrets, or env. The
+  // user uploads it to THEIR OWN Code Scanning via github/codeql-action/upload-sarif.
+  if (flags.format === "sarif") {
+    const sarifPath = resolve(flags.output || "taskbounty.sarif");
+    writeFileSync(sarifPath, JSON.stringify(renderSarif(result), null, 2));
+    console.log(summaryLine);
+    console.log(`SARIF written: ${sarifPath} (no source/secrets/env; upload with github/codeql-action/upload-sarif).`);
     return;
   }
 

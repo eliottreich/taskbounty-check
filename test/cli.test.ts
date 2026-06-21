@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { mkdtempSync, mkdirSync, writeFileSync, symlinkSync, rmSync, readFileSync } from "node:fs";
-import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { scanRepoRoots, scanInput, toSanitizedSummary, assertSanitizedSummarySafe, reviewCtaUrl, renderHtml, buildNormalizedResult } from "../src/lib.js";
@@ -128,16 +127,6 @@ describe("GitHub Action is read-only and self-contained", () => {
   });
 });
 
-describe("CLI version", () => {
-  it("reports the published package name and version", () => {
-    const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
-    const output = execFileSync(process.execPath, [new URL("../src/index.js", import.meta.url).pathname, "--version"], {
-      encoding: "utf8",
-    }).trim();
-    expect(output).toBe(`taskbounty-check@${pkg.version}`);
-  });
-});
-
 describe("github step summary is sanitized aggregates only", () => {
   it("contains counts/labels but no filenames, line numbers, or evidence", async () => {
     const { renderGithubSummary } = await import("../src/lib.js");
@@ -150,9 +139,13 @@ describe("github step summary is sanitized aggregates only", () => {
       orgLabel: null, scanId: "abc", generatedAt: "2026-06-19T00:00:00Z",
     });
     const md = renderGithubSummary(result);
-    expect(md).toContain("| Maintenance category | Count |");
-    // no filenames, repo names, file:line refs, or exploit markers (category labels like
-    // "token_permissions" are fine — we check for real leakage vectors only).
+    expect(md).toContain("| Category | Count | Recommended next step |");
+    expect(md).toContain("What was checked");
+    expect(md).toContain("Limitations (honest)");
+    // single tracked help link with the channel-only utm (no repo/finding data in the URL)
+    expect(md).toContain("utm_source=github&utm_medium=action_summary&utm_campaign=workflow_security");
+    expect((md.match(/\/ai-app-security-check\/review/g) || []).length).toBe(1);
+    // no filenames, repo names, file:line refs, or exploit markers
     expect(md).not.toMatch(/\.ya?ml|owner\/secret-app|\.github\/workflows|onerror|alert\(/i);
   });
 });

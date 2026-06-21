@@ -1,0 +1,26 @@
+# Example: run taskbounty-check and upload SARIF to GitHub Code Scanning.
+# Copy into .github/workflows/ in your repo. Least-privilege; pin actions to a SHA in production.
+name: TaskBounty Code Scanning
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+  security-events: write   # required by upload-sarif
+
+jobs:
+  taskbounty-sarif:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      # Generates taskbounty.sarif locally. No network, no source/secrets/env in the SARIF.
+      - run: npx taskbounty-check@latest . --format sarif --output taskbounty.sarif
+      - uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: taskbounty.sarif

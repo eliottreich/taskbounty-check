@@ -39,9 +39,18 @@ export function buildNormalizedResult({ repos, orgLabel = null, scanId, generate
     }
     if (a.strongHygiene.some((f) => f.rule === "broad-permissions")) writeAll = true;
     privateReviewCount += a.exploit.length;
-    // local-only full evidence (every finding, incl. exploit detail)
+    // local-only full evidence (every finding, incl. exploit detail). rule/class/confirmed are
+    // carried so SARIF can emit deterministic rule ids + distinguish confirmed findings from
+    // review suggestions. This stays on the user's machine unless they generate SARIF for their
+    // OWN Code Scanning; it is never transmitted to TaskBounty.
     for (const f of [...a.strongHygiene, ...a.contextHygiene, ...a.exploit]) {
-      localEvidence.push({ category: RULE_CATEGORY[f.rule] ?? (f.class === "exploit" ? "workflow_security_checks" : "other"), severity: f.severity, file: `${r.repoName}/${f.file}`, line: f.line ?? null, detail: f.detail, fix: f.fix });
+      localEvidence.push({
+        rule: f.rule,
+        ruleClass: f.class, // "hygiene" | "exploit"
+        confirmed: f.class === "exploit" || f.strong === true, // else: a review suggestion
+        category: RULE_CATEGORY[f.rule] ?? (f.class === "exploit" ? "workflow_security_checks" : "other"),
+        severity: f.severity, file: `${r.repoName}/${f.file}`, line: f.line ?? null, detail: f.detail, fix: f.fix,
+      });
     }
   }
 

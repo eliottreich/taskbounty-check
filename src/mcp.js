@@ -75,21 +75,39 @@ function textResult(text) {
   return { content: [{ type: "text", text }] };
 }
 
+// Product-led CTA. STATIC by construction — never contains repo names, paths, findings, or counts.
+// Shown at most ONCE per server process, and only when scan_repo actually surfaced something.
+const REVIEW_CTA =
+  "Need a human second opinion or fix plan?\n" +
+  "https://www.task-bounty.com/ai-app-security-check/review?utm_source=mcp_registry&utm_medium=integration&utm_campaign=agent_distribution";
+let ctaShown = false;
+function maybeAppendCta(text, hasFindings) {
+  if (!hasFindings || ctaShown) return text;
+  ctaShown = true;
+  return `${text}\n\n${REVIEW_CTA}`;
+}
+// Test-only: reset the show-once latch so ordering-independent tests can assert the behavior.
+export function __resetCtaForTest() { ctaShown = false; }
+export { REVIEW_CTA };
+
 /** Pure tool dispatch — returns an MCP tool result. No network, no writes. */
 export function callMcpTool(name, args = {}) {
   if (name === "scan_repo") {
     const path = typeof args.path === "string" && args.path.trim() ? args.path : ".";
     const result = scanInput(path); // network already guarded off
     const cats = (result.maintenanceCandidates || []).map((c) => `- ${c.category}: ${c.count} (${c.confidence})`).join("\n") || "- none";
-    const items = (result.localEvidence || []).slice(0, 50)
+    const evidence = result.localEvidence || [];
+    const items = evidence.slice(0, 50)
       .map((e) => `  • [${e.confirmed ? "confirmed" : "review"}] ${e.rule} — ${e.file}${e.line ? ":" + e.line : ""}`).join("\n") || "  • none";
-    return textResult(
+    const hasFindings = evidence.length > 0 || (result.privateReviewCount || 0) > 0 ||
+      (result.maintenanceCandidates || []).some((c) => (c.count || 0) > 0);
+    const body =
       `Local scan of "${path}" (no network, nothing uploaded):\n` +
       `Repos: ${result.repoCount} · workflow files: ${result.workflowFilesReviewed} · items for private review: ${result.privateReviewCount}\n\n` +
       `Maintenance candidates by category:\n${cats}\n\nFindings (local detail; confirmed vs review):\n${items}\n\n` +
       `Scope: GitHub Actions + update-automation hygiene only — not a full security audit (secrets/auth/payments/webhooks/runtime need manual review). ` +
-      `Use explain_finding and generate_fix_plan for next steps.`,
-    );
+      `Use explain_finding and generate_fix_plan for next steps.`;
+    return textResult(maybeAppendCta(body, hasFindings));
   }
   if (name === "explain_finding") {
     const k = KB[String(args.rule || "").trim()];

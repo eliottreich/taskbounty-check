@@ -39,14 +39,15 @@ npx -y taskbounty-check@0.1.5 .
 > Pin a version (`@0.1.5`) in committed config and CI for reproducibility. `@latest` is convenient
 > for a quick one-off, but a pinned version is the reproducible choice.
 
-### A real GitHub job summary
+### The GitHub job summary
 
 The Action writes a counts-only maintenance summary to the workflow run (categories and next steps,
-no filenames, line numbers, or repo source). Example from this repo's own CI:
+no filenames, line numbers, or repo source). Below is that exact summary, rendered from this repo.s
+own CI output:
 
-![TaskBounty check: GitHub Actions job summary](docs/job-summary.png)
+![TaskBounty check: GitHub Actions maintenance summary](docs/job-summary.png)
 
-See it live: the **self-check** job in [this repository's Actions runs](https://github.com/eliottreich/taskbounty-check/actions).
+See it produced live by the **self-check** job in [this repository.s Actions runs](https://github.com/eliottreich/taskbounty-check/actions).
 
 ### Learn more
 

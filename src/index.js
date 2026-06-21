@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 // taskbounty-check — scan GitHub Actions workflows for maintenance candidates LOCALLY.
-// Source code and workflow contents never leave your machine. Network is OFF by default; only a
-// sanitized summary may be uploaded, and only after you see the exact payload and confirm.
+// Source code and workflow contents never leave your machine. The default code path makes no
+// outbound requests (fetch is additionally blocked as defense in depth). --share uploads nothing:
+// it writes a sanitized local file you submit manually. Only --gh-org intentionally uses the network.
 
 import { writeFileSync, unlinkSync, existsSync, readFileSync, appendFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { execFileSync } from "node:child_process";
-import { scanRepoRoots, scanInput, newScanId, toSanitizedSummary, assertSanitizedSummarySafe, renderHtml, buildNormalizedResult, SCANNER_VERSION, reviewCtaUrl, REVIEW_CTA_TEXT, renderGithubSummary, renderSarif } from "./lib.js";
+import { scanRepoRoots, scanInput, newScanId, toSanitizedSummary, assertSanitizedSummarySafe, renderHtml, buildNormalizedResult, SCANNER_VERSION, reviewCtaUrl, REVIEW_CTA_TEXT, renderGithubSummary, renderSarif, resolveNetworkPolicy } from "./lib.js";
 import { auditWorkflows } from "./scanner.js";
 import { installNoNetworkGuard } from "./net.js";
 import { planInit, writeInit, WORKFLOW_RELPATH } from "./init.js";
@@ -53,8 +54,8 @@ Usage:
   npx taskbounty-check --gh-org <org>          scan an org via your existing gh session (NETWORK)
 
 Flags:
-  --share                 produce a sanitized summary (counts only) to paste into TaskBounty (no upload)
-  --gh-org <org>          use your local gh CLI session to fetch workflow files for an org (NETWORK, opt-in)
+  --share                 write a sanitized counts-only file for MANUAL submission (uploads nothing; network stays off)
+  --gh-org <org>          the ONLY networked mode: fetch an org's workflow files via your gh session (opt-in)
   --manifest <file>       JSON array of local repository paths
   --org-label <label>     label included in the report/summary
   --include-repo-names    include repo names in a shared summary (opt-in)
@@ -64,12 +65,14 @@ Flags:
   --github-summary        write ONLY a sanitized counts summary to $GITHUB_STEP_SUMMARY (for CI; no files, no upload)
   --format sarif          emit SARIF 2.1.0 for GitHub Code Scanning (rule ids + file/line; no source/secrets/env)
   --output <file>         output path for --format sarif (default: taskbounty.sarif)
-  --no-network            hard-disable all network (default unless --share/--gh-org)
+  --no-network            block fetch as defense in depth (default everywhere except --gh-org)
   --out <basename>        output basename (default: actions-check-report)
 
 Scope: this checks GitHub Actions workflow + update-automation hygiene. It does NOT check exposed
-secrets, auth, payments, webhooks, or runtime — those need a manual review. By default NOTHING is
-transmitted and no network request is made. Learn more: https://www.task-bounty.com/ai-app-security-check`);
+secrets, auth, payments, webhooks, or runtime — those need a manual review.
+Network: the default code path makes no outbound requests; fetch is additionally blocked as defense
+in depth. Only --gh-org intentionally uses the network. --share uploads nothing — it writes a
+sanitized local file you submit manually. Learn more: https://www.task-bounty.com/ai-app-security-check`);
 }
 
 const DATA_DOC = `Data handling for taskbounty-check
@@ -85,13 +88,16 @@ WRITES (local only):
   - <out>.html  (human-readable local report)
 
 TRANSMITS:
-  - Nothing by default. Network is OFF.
-  - With --gh-org: your existing gh CLI session fetches the org's workflow files TO THIS MACHINE
-    (read-only). Your GitHub token is never read by this tool and never sent to TaskBounty.
-  - With --share: ONLY a sanitized summary (scan id, label, counts by category, private-review
-    COUNT, scanner version, timestamps; repo names only with --include-repo-names). The exact
-    outbound payload is printed and you must confirm before anything is sent. No source code,
-    workflow contents, filenames, line numbers, secrets, tokens, paths, or evidence are included.`;
+  - Nothing by default. The default code path makes no outbound requests; fetch is additionally
+    blocked as defense in depth (this is not a complete network sandbox).
+  - --share uploads NOTHING. It writes a sanitized counts-only file (scan id, label, counts by
+    category, private-review COUNT, scanner version, timestamps; repo names only with
+    --include-repo-names) and prints it, for you to submit MANUALLY. No source code, workflow
+    contents, filenames, line numbers, secrets, tokens, paths, or evidence are included. Network
+    stays off under --share.
+  - Only --gh-org intentionally uses the network: your existing gh CLI session fetches the org's
+    workflow files TO THIS MACHINE (read-only). Your GitHub token is never read by this tool and
+    never sent to TaskBounty.`;
 
 // --gh-org: use the user's gh session to fetch workflow files for each repo TO THIS MACHINE.
 function scanGhOrg(org) {
@@ -162,12 +168,14 @@ async function main() {
 
   if (flags.explainData) { console.log(DATA_DOC); return; }
 
-  const wantsNetwork = flags.share || flags.ghOrg;
-  if (flags.noNetwork && wantsNetwork) {
-    console.error("Error: --no-network conflicts with --share/--gh-org.");
+  // Only --gh-org intentionally uses the network. --share is a LOCAL, manual operation (it writes
+  // a sanitized file to paste; it uploads nothing), so it keeps the network guard.
+  const { networking, conflict } = resolveNetworkPolicy(flags);
+  if (conflict) {
+    console.error("Error: --no-network conflicts with --gh-org (the only networked mode).");
     process.exit(2);
   }
-  if (!wantsNetwork) installNoNetworkGuard(); // default: zero network
+  if (!networking) installNoNetworkGuard(); // default + --share: no outbound requests
 
   // ---- gather + scan ----
   let result;

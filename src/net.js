@@ -1,5 +1,7 @@
-// Network guard. In no-network mode (the default) we replace globalThis.fetch with a stub that
-// throws, so an outbound request is technically prevented, not merely avoided by convention.
+// Network guard (defense in depth). The default code path makes no outbound requests; this
+// additionally replaces globalThis.fetch with a throwing stub so the most common request mechanism
+// is blocked. This is NOT a complete network sandbox — it does not intercept every possible Node
+// networking API (http/https/net/dns/child_process). It hardens the default no-request behavior.
 
 let installed = false;
 let original = null;
